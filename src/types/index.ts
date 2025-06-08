@@ -10,7 +10,7 @@ export interface Donor {
     latitude: number;
     longitude: number;
     is_available: boolean;
-    distance: number;  // Distance in meters from the user's location
+    // distance: number;  // Distance in meters from the user's location
 }
 
 export interface Hospital {

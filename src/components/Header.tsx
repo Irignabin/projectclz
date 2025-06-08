@@ -24,6 +24,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import BloodtypeIcon from '@mui/icons-material/Bloodtype';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import PersonIcon from '@mui/icons-material/Person';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -34,10 +35,14 @@ const Header: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-    handleCloseMenu();
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+      handleCloseMenu();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -84,6 +89,11 @@ const Header: React.FC = () => {
     { label: 'Edit Profile', path: '/profile/edit' },
     { label: 'Dashboard', path: '/dashboard' }
   ];
+
+  const getInitials = (name?: string) => {
+    if (!name) return '';
+    return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase();
+  };
 
   const NavLink = ({ label, path }: { label: string; path: string }) => (
     <Button
@@ -264,9 +274,9 @@ const Header: React.FC = () => {
                       color: 'white'
                     }}
                   >
-                    {user.name.charAt(0)}
+                    {user.name ? getInitials(user.name) : <PersonIcon />}
                   </Avatar>
-                  <Typography>{user.name}</Typography>
+                  <Typography>{user.name || 'User'}</Typography>
                   <KeyboardArrowDownIcon />
                 </Button>
               )}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Container,
@@ -11,25 +11,88 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Button
+  Button,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PhoneIcon from '@mui/icons-material/Phone';
 import EditIcon from '@mui/icons-material/Edit';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { userService } from '../services/api';
+import type { User } from '../services/api';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user: authUser, initializing } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(authUser);
+
+  // Update user state when authUser changes
+  useEffect(() => {
+    if (authUser) {
+      setUser(authUser);
+    }
+  }, [authUser]);
+
+  // Load profile data
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      if (!authUser?.id) return;
+
+      try {
+        setError(null);
+        const userData = await userService.getProfile();
+        if (mounted) {
+          console.log('Loaded user data:', userData); // Debug log
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+        if (mounted) {
+          setError('Failed to load profile data. Please try again.');
+          setUser(authUser);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [authUser, authUser?.id]);
+
+  if (initializing) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   if (!user) {
-    return null;
+    return <Navigate to="/login" replace />;
   }
+
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase();
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      
       <Grid container spacing={3}>
         {/* Profile Overview */}
         <Grid item xs={12} md={4}>
@@ -51,7 +114,7 @@ const Profile: React.FC = () => {
                 margin: '0 auto 16px'
               }}
             >
-              {user.name[0]}
+              {user.name ? getInitials(user.name) : <PersonIcon />}
             </Avatar>
             <Typography variant="h5" gutterBottom>
               {user.name}
@@ -59,19 +122,19 @@ const Profile: React.FC = () => {
             <Typography variant="body1" color="text.secondary" gutterBottom>
               {user.email}
             </Typography>
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
               <Typography 
                 variant="body2" 
                 sx={{ 
                   display: 'inline-block',
-                  bgcolor: '#dc2626',
+                  bgcolor: user.is_donor ? '#dc2626' : '#666',
                   color: 'white',
                   px: 2,
                   py: 0.5,
                   borderRadius: '4px'
                 }}
               >
-                Active Donor
+                {user.is_donor ? 'Active Donor' : 'Not a Donor'}
               </Typography>
               <Button
                 component={Link}
@@ -112,7 +175,7 @@ const Profile: React.FC = () => {
             <List>
               <ListItem>
                 <ListItemIcon>
-                  <PersonIcon color="primary" />
+                  <PersonIcon sx={{ color: '#dc2626' }} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Full Name" 
@@ -122,31 +185,41 @@ const Profile: React.FC = () => {
               
               <ListItem>
                 <ListItemIcon>
-                  <EmailIcon color="primary" />
+                  <EmailIcon sx={{ color: '#dc2626' }} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Email Address" 
                   secondary={user.email} 
                 />
               </ListItem>
-              
+
               <ListItem>
                 <ListItemIcon>
-                  <LocalHospitalIcon color="primary" />
+                  <PhoneIcon sx={{ color: '#dc2626' }} />
                 </ListItemIcon>
                 <ListItemText 
-                  primary="Blood Type" 
-                  secondary="A+ (Update your blood type)" 
+                  primary="Phone Number" 
+                  secondary={user.phone || 'Click Edit Profile to add your phone number'} 
                 />
               </ListItem>
               
               <ListItem>
                 <ListItemIcon>
-                  <LocationOnIcon color="primary" />
+                  <LocalHospitalIcon sx={{ color: '#dc2626' }} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Blood Type" 
+                  secondary={user.blood_type || 'Click Edit Profile to add your blood type'} 
+                />
+              </ListItem>
+              
+              <ListItem>
+                <ListItemIcon>
+                  <LocationOnIcon sx={{ color: '#dc2626' }} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Location" 
-                  secondary="Kathmandu, Nepal (Update your location)" 
+                  secondary={user.address || 'Click Edit Profile to add your location'} 
                 />
               </ListItem>
             </List>
@@ -157,7 +230,9 @@ const Profile: React.FC = () => {
               </Typography>
               <Divider sx={{ mb: 2 }} />
               <Typography variant="body2" color="text.secondary">
-                No donation history available yet.
+                {user.last_donation_date 
+                  ? `Last donation: ${new Date(user.last_donation_date).toLocaleDateString()}`
+                  : 'No donation history available yet.'}
               </Typography>
             </Box>
           </Paper>

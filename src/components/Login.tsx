@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, ChangeEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, useEffect } from 'react';
 import { 
   Box, 
   Container, 
@@ -9,7 +9,10 @@ import {
   Link,
   Snackbar,
   Alert,
-  CircularProgress
+  CircularProgress,
+  FormControlLabel,
+  Checkbox,
+  Grid
 } from '@mui/material';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -18,8 +21,9 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, user, initializing } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rememberedEmail') !== null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -27,7 +31,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (!initializing && user) {
       const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from);
+      navigate(from, { replace: true });
     }
   }, [user, initializing, navigate, location]);
 
@@ -37,14 +41,32 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      setShowSuccess(true);
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      setTimeout(() => {
-        navigate(from);
-      }, 1500);
+      const result = await login(email, password);
+      console.log('Login successful:', result);
+      navigate("/dashboard")
+      
+      // Handle remember me
+      // if (rememberMe) {
+      //   localStorage.setItem('rememberedEmail', email);
+      // } else {
+      //   localStorage.removeItem('rememberedEmail');
+      // }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to login');
+      console.error('Login error details:', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+        fullError: JSON.stringify(err, null, 2)
+      });
+      
+      const errorMessage = err.response?.data?.message || 'Failed to login';
+      if (errorMessage.toLowerCase().includes('expired')) {
+        setError('Your session has expired. Please login again.');
+      } else if (errorMessage.toLowerCase().includes('credentials')) {
+        setError('Invalid email or password.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -58,6 +80,10 @@ const Login: React.FC = () => {
   const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     if (error) setError('');
+  };
+
+  const handleRememberMeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setRememberMe(e.target.checked);
   };
 
   if (initializing) {
@@ -117,6 +143,31 @@ const Login: React.FC = () => {
               helperText={error}
               disabled={loading}
             />
+            
+            <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={rememberMe}
+                      onChange={handleRememberMeChange}
+                      color="primary"
+                    />
+                  }
+                  label="Remember me"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} sx={{ textAlign: 'right' }}>
+                <Link
+                  component={RouterLink}
+                  to="/forgot-password"
+                  sx={{ color: '#dc2626' }}
+                >
+                  Forgot password?
+                </Link>
+              </Grid>
+            </Grid>
+
             <Button
               type="submit"
               fullWidth
@@ -155,7 +206,7 @@ const Login: React.FC = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert severity="success" sx={{ width: '100%' }}>
-          Login successful! Redirecting to dashboard...
+          Login successful! Redirecting...
         </Alert>
       </Snackbar>
     </Box>

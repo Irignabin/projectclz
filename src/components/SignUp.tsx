@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, ChangeEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -28,6 +28,9 @@ interface FormData {
   confirmPassword: string;
   bloodType: string;
   phone: string;
+  address: string;
+  city: string;
+  general?: string;
 }
 
 const SignUp: React.FC = () => {
@@ -41,8 +44,11 @@ const SignUp: React.FC = () => {
     confirmPassword: '',
     bloodType: '',
     phone: '',
+    address: '',
+    city: ''
   });
 
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -75,18 +81,67 @@ const SignUp: React.FC = () => {
     }));
   };
 
+  const getLocation = async () => {
+    if (!navigator.geolocation) {
+      setErrors(prev => ({
+        ...prev,
+        address: 'Geolocation is not supported by your browser.'
+      }));
+      return;
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      });
+
+      setLocation({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      });
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setErrors(prev => ({
+        ...prev,
+        address: 'Failed to get location. Please enter address manually.'
+      }));
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
 
     if (!formData.firstName) newErrors.firstName = 'First name is required';
     if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.email) newErrors.email = 'Email is required';
-    if (!formData.password) newErrors.password = 'Password is required';
+    
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
+    
+    // Phone validation
+    if (!formData.phone) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
+    
     if (!formData.bloodType) newErrors.bloodType = 'Blood type is required';
-    if (!formData.phone) newErrors.phone = 'Phone number is required';
+    if (!formData.address && !location) newErrors.address = 'Address is required';
+    if (!formData.city) newErrors.city = 'City is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -98,23 +153,29 @@ const SignUp: React.FC = () => {
       setLoading(true);
       try {
         await register({
-          name: formData.firstName + ' ' + formData.lastName,
+          name: `${formData.firstName} ${formData.lastName}`,
           email: formData.email,
           password: formData.password,
           password_confirmation: formData.confirmPassword,
-          phone: '',  // These fields will be filled in later in the BecomeDonor form
-          blood_type: '',
+          phone: formData.phone,
+          blood_type: formData.bloodType,
           is_donor: false,
-          address: '',
-          latitude: 0,
-          longitude: 0
+          address: formData.address,
+          city: formData.city,
+          latitude: location?.lat || 0,
+          longitude: location?.lng || 0
         });
         setShowSuccess(true);
         setTimeout(() => {
-          navigate('/become-donor');  // Redirect to donor form to complete profile
+          navigate('/dashboard');
         }, 1500);
       } catch (err: any) {
-        setErrors({ email: err.response?.data?.message || 'Failed to register' });
+        const errorMessage = err.response?.data?.message || 'Failed to register';
+        if (errorMessage.includes('email')) {
+          setErrors(prev => ({ ...prev, email: errorMessage }));
+        } else {
+          setErrors(prev => ({ ...prev, general: errorMessage }));
+        }
       } finally {
         setLoading(false);
       }
@@ -259,6 +320,32 @@ const SignUp: React.FC = () => {
                   disabled={loading}
                 />
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  error={!!errors.address}
+                  helperText={errors.address}
+                  required
+                  disabled={loading}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="City"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  error={!!errors.city}
+                  helperText={errors.city}
+                  required
+                  disabled={loading}
+                />
+              </Grid>
             </Grid>
 
             <Button
@@ -299,7 +386,7 @@ const SignUp: React.FC = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert severity="success" sx={{ width: '100%' }}>
-          Registration successful! Redirecting to complete your profile...
+          Registration successful! Redirecting to dashboard...
         </Alert>
       </Snackbar>
     </Box>

@@ -50,6 +50,7 @@ interface PublicRouteProps {
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { user, token, initializing } = useAuth();
+  console.log(user)
   const location = useLocation();
 
   if (initializing) {

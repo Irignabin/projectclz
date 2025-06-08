@@ -13,41 +13,25 @@ import {
     Alert,
     CircularProgress
 } from '@mui/material';
-import { requestService, UrgencyLevel } from '../services/api';
+import { requestService, type BloodRequestData, type UrgencyLevel } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const urgencyLevels: UrgencyLevel[] = ['low', 'medium', 'high', 'critical'];
-
-interface FormData {
-    blood_type: string;
-    units_needed: number;
-    hospital_name: string;
-    hospital_address: string;
-    latitude: number;
-    longitude: number;
-    urgency_level: UrgencyLevel;
-    patient_name: string;
-    contact_phone: string;
-    additional_notes: string;
-}
+const urgencyLevels: UrgencyLevel[] = ['normal', 'urgent', 'emergency'];
 
 const BloodRequestForm: React.FC = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [formData, setFormData] = useState<FormData>({
+    const [formData, setFormData] = useState<BloodRequestData>({
         blood_type: '',
         units_needed: 1,
-        hospital_name: '',
-        hospital_address: '',
-        latitude: 0,
-        longitude: 0,
-        urgency_level: 'medium',
-        patient_name: '',
+        hospital_id: 1, // This should be selected from a list of hospitals
+        contact_name: '',
         contact_phone: '',
-        additional_notes: ''
+        urgency_level: 'normal',
+        notes: ''
     });
 
     const handleTextChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -97,6 +81,12 @@ const BloodRequestForm: React.FC = () => {
                     </Alert>
                 )}
 
+                {success && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                        Blood request created successfully!
+                    </Alert>
+                )}
+
                 <form onSubmit={handleSubmit}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
                         <InputLabel>Blood Type</InputLabel>
@@ -129,9 +119,9 @@ const BloodRequestForm: React.FC = () => {
 
                     <TextField
                         fullWidth
-                        name="hospital_name"
-                        label="Hospital Name"
-                        value={formData.hospital_name}
+                        name="contact_name"
+                        label="Contact Name"
+                        value={formData.contact_name}
                         onChange={handleTextChange}
                         required
                         sx={{ mb: 2 }}
@@ -139,13 +129,11 @@ const BloodRequestForm: React.FC = () => {
 
                     <TextField
                         fullWidth
-                        name="hospital_address"
-                        label="Hospital Address"
-                        value={formData.hospital_address}
+                        name="contact_phone"
+                        label="Contact Phone"
+                        value={formData.contact_phone}
                         onChange={handleTextChange}
                         required
-                        multiline
-                        rows={2}
                         sx={{ mb: 2 }}
                     />
 
@@ -168,29 +156,9 @@ const BloodRequestForm: React.FC = () => {
 
                     <TextField
                         fullWidth
-                        name="patient_name"
-                        label="Patient Name"
-                        value={formData.patient_name}
-                        onChange={handleTextChange}
-                        required
-                        sx={{ mb: 2 }}
-                    />
-
-                    <TextField
-                        fullWidth
-                        name="contact_phone"
-                        label="Contact Phone"
-                        value={formData.contact_phone}
-                        onChange={handleTextChange}
-                        required
-                        sx={{ mb: 2 }}
-                    />
-
-                    <TextField
-                        fullWidth
-                        name="additional_notes"
+                        name="notes"
                         label="Additional Notes"
-                        value={formData.additional_notes}
+                        value={formData.notes}
                         onChange={handleTextChange}
                         multiline
                         rows={3}
